@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kloang Pattern Lab — ทดลองลายกลบท</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Kloang Pattern Lab</h1>
+      <p class="sub">ทดลองลายกลบทด้วย first-occurrence encoding ระดับทั้งบท — ใส่กลอนเอง เลือกต้นแบบ แล้วตรวจหลายบทพร้อมกัน</p>
+    </div>
+    <details class="help">
+      <summary>วิธีใช้</summary>
+      <ol>
+        <li>พิมพ์กลอน <b>1 บรรทัด = 1 บาท</b>, เว้นวรรค<b>ระหว่างพยางค์</b>, ใช้ <code>|</code> คั่นวรรค (วรรคที่ 3 = คำสร้อย)</li>
+        <li>ติ๊ก <b>ต้นแบบ</b> เพื่อใช้ดึงกฎ — ติ๊กหลายบทจะได้เฉพาะกฎที่ทุกบทมีร่วมกัน (intersection)</li>
+        <li>ติ๊ก <b>ทดสอบ</b> กับกลอนที่ต้องการตรวจ แล้วดูผลในตารางเปรียบเทียบ</li>
+        <li>ปิดกฎบางข้อได้ในรายการกฎ เพื่อทดลองว่ากฎไหนสำคัญ</li>
+        <li>ข้อมูลเก็บในเบราว์เซอร์นี้เท่านั้น — ใช้ “ส่งออก JSON” เพื่อสำรอง</li>
+      </ol>
+    </details>
+  </header>
+
+  <main class="layout">
+    <!-- คลังกลอน -->
+    <aside class="panel library">
+      <div class="panel-head">
+        <h2>คลังกลอน</h2>
+        <button id="btn-new" class="btn primary" type="button">+ เพิ่มกลอน</button>
+      </div>
+      <div class="legend"><span>ต้นแบบ</span><span>ทดสอบ</span><span>ชื่อ</span></div>
+      <ul id="poem-list" class="poem-list"></ul>
+      <div class="lib-actions">
+        <button id="btn-export" class="btn" type="button">ส่งออก JSON</button>
+        <label class="btn file-btn">นำเข้า JSON<input id="file-import" type="file" accept="application/json,.json" hidden></label>
+        <button id="btn-reset" class="btn ghost" type="button">คืนค่าตัวอย่าง</button>
+      </div>
+    </aside>
+
+    <section class="content">
+      <!-- Editor -->
+      <section class="panel">
+        <div class="panel-head">
+          <h2>แก้ไขกลอน</h2>
+          <div class="row-actions">
+            <button id="btn-segment" class="btn" type="button" title="ใช้ตัวตัดคำของเบราว์เซอร์ — ต้องตรวจและแก้ให้เป็นพยางค์เอง">ตัดคำอัตโนมัติ</button>
+            <button id="btn-delete" class="btn danger" type="button">ลบ</button>
+          </div>
+        </div>
+        <input id="poem-name" class="name-input" type="text" placeholder="ชื่อกลอน" aria-label="ชื่อกลอน">
+        <textarea id="poem-text" rows="5" spellcheck="false" aria-label="เนื้อกลอน"
+          placeholder="ผล บุญ บุญ เกื้อ กอบ | ยศ ศักดิ์"></textarea>
+        <div id="poem-meta" class="meta"></div>
+      </section>
+
+      <!-- Rules -->
+      <section class="panel">
+        <div class="panel-head">
+          <h2>กฎของกลบท <span id="rule-source" class="muted"></span></h2>
+          <div class="row-actions">
+            <button id="btn-rules-all" class="btn small" type="button">เปิดทั้งหมด</button>
+          </div>
+        </div>
+        <div id="ref-pattern"></div>
+        <ul id="rule-list" class="rule-list"></ul>
+      </section>
+
+      <!-- Comparison -->
+      <section class="panel">
+        <div class="panel-head">
+          <h2>ผลเปรียบเทียบ</h2>
+          <button id="btn-csv" class="btn small" type="button">ส่งออก CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table class="results">
+            <thead>
+              <tr><th>กลอน</th><th>โครง</th><th>ผ่านกฎ</th><th>ลายตรงทุกตัว</th><th>กฎที่ไม่ผ่าน</th></tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Detail -->
+      <section class="panel">
+        <div class="panel-head"><h2>รายละเอียด: <span id="detail-name"></span></h2></div>
+        <div class="detail-grid">
+          <div>
+            <h3>ลายทั้งบท</h3>
+            <div id="detail-pattern"></div>
+            <h3>คำที่ซ้ำ (back-reference)</h3>
+            <div id="detail-refs"></div>
+          </div>
+          <div>
+            <h3>Equality matrix <span class="muted">(ดำ = คำเดียวกัน · เขียว/แดง = กฎผ่าน/ไม่ผ่าน)</span></h3>
+            <div id="matrix" class="matrix"></div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="foot">
+    พอร์ตจาก <code>method4_poem_level.py</code> · ต้นฉบับกลโคลงดาวล้อมเดือน: จารึกวัดพระเชตุพนฯ (ศิลาจารึกบาท 2 ใช้ “คงชัก”)
+  </footer>
+
+  <script src="kloang.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
