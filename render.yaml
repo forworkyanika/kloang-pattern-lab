@@ -1,0 +1,12 @@
+# Render Blueprint — static site (ไม่มี build step)
+services:
+  - type: web
+    runtime: static
+    name: kloang-pattern-lab
+    branch: main
+    buildCommand: echo "static site - no build"
+    staticPublishPath: .
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
