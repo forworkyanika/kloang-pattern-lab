@@ -202,3 +202,29 @@ code.hash { display: block; word-break: break-all; padding: 8px; background: #f0
 .wide { grid-template-columns: minmax(0, 1fr); }
 .wide > *, .two-col > * { min-width: 0; }
 .wide .prose { margin: 0; }
+
+/* matrix guide + attention */
+.guide summary { cursor: pointer; display: flex; align-items: baseline; gap: 10px; list-style: none; }
+.guide summary::-webkit-details-marker { display: none; }
+.guide summary h2 { display: inline; font-size: 17px; margin: 0; }
+.guide summary h2::before { content: "▸ "; color: var(--accent); }
+.guide[open] summary h2::before { content: "▾ "; }
+.guide p { max-width: 90ch; }
+.small-guide { margin-top: 14px; }
+.small-guide summary { font-size: 14px; }
+pre.ascii, pre.code { font-family: var(--mono); font-size: 13px; background: #f6f3ec; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; line-height: 1.5; }
+pre.code { font-size: 12.5px; }
+.formula { font-family: var(--mono); background: #f6f3ec; display: inline-block; padding: 4px 10px; border-radius: 6px; }
+table.compact td, table.compact th { padding: 5px 10px; }
+#attn-out { margin-top: 10px; }
+.inline input[type="checkbox"] { width: auto; accent-color: var(--accent); }
+table.mini-matrix { border-collapse: collapse; font-size: 13px; background: #fbfaf7; border: 1px solid var(--line); }
+.mini-matrix th, .mini-matrix td { width: 26px; height: 24px; text-align: center; padding: 0 2px; }
+.mini-matrix thead th { color: var(--muted); font-weight: 600; font-family: var(--mono); }
+.mini-matrix tbody th { text-align: left; white-space: nowrap; padding: 0 10px 0 8px; font-weight: 400; color: #444; width: auto; }
+.mini-matrix .bnd { border-left: 2px solid #e2a19a; }
+.mini-matrix tr.bndrow th, .mini-matrix tr.bndrow td { border-top: 2px solid #e2a19a; }
+.mini-matrix .eq { color: #1f2328; font-size: 15px; }
+.mini-matrix .dot { color: #c9c4b8; }
+.mini-matrix .dg { color: #b9b4a8; }
+.mini-matrix td.note { width: auto; text-align: left; white-space: nowrap; color: var(--accent); padding-left: 14px; border: none; }

@@ -319,12 +319,50 @@
     return row[0];
   }
 
+  // ---------- attention comparison ----------
+  /** attention ในอุดมคติ: ครึ่งล่างของ equality matrix (รวมเส้นทแยง) normalize ต่อแถว */
+  function idealAttention(poem) {
+    const toks = flattenWithPos(poem).map((t) => t.token);
+    return toks.map((ti, i) => {
+      const row = toks.map((tj, j) => (j <= i && tj === ti ? 1 : 0));
+      const s = row.reduce((a, b) => a + b, 0);
+      return row.map((v) => v / s);
+    });
+  }
+
+  /** วัด attention ที่ตกบนตำแหน่งต้นทางของแต่ละกฎ
+   *  A = matrix N×N (แถว = query, คอลัมน์ = key) · shift = ใช้แถว b−1 (การทำนาย token ถัดไป) */
+  function ruleAttention(A, poem, rules, shift) {
+    const flat = flattenWithPos(poem);
+    const idx = new Map(flat.map((t, i) => [posKey(t.pos), i]));
+    const out = [];
+    for (const r of rules) {
+      const a = idx.get(posKey(r.a)), b = idx.get(posKey(r.b));
+      if (a === undefined || b === undefined) continue;
+      const row = shift ? b - 1 : b;
+      if (row < 0 || !A[row] || a > row) continue;
+      const causal = A[row].slice(0, row + 1).map((v) => Math.max(0, Number(v) || 0));
+      const tot = causal.reduce((x, y) => x + y, 0) || 1;
+      const value = causal[a] / tot;
+      const baseline = 1 / (row + 1);
+      const rank = 1 + causal.filter((v) => v > causal[a]).length;
+      out.push({ ...r, ia: a, ib: b, row, value, baseline, lift: value / baseline, rank });
+    }
+    const summ = (xs) => xs.length ? {
+      n: xs.length,
+      mean: xs.reduce((s, x) => s + x.value, 0) / xs.length,
+      lift: xs.reduce((s, x) => s + x.lift, 0) / xs.length,
+      top1: xs.filter((x) => x.rank === 1).length / xs.length,
+    } : null;
+    return { rules: out, all: summ(out), same: summ(out.filter((x) => x.kind === "SAME")), cross: summ(out.filter((x) => x.kind === "CROSS")) };
+  }
+
   const api = {
     WAK_NAMES, parsePoem, poemToText, posKey, posLabel, flattenWithPos,
     poemFirstOccurrence, letterPattern, backReferences, extractRules,
     equalPairs, pairsToRules, intersectRules, tokenAt, check, shape, khlongWarnings,
     rulePairs, loraMetrics, pairFeatureMatrix, singularValues, effectiveRank, bell,
-    prevDistances, prevByBat,
+    prevDistances, prevByBat, idealAttention, ruleAttention,
   };
   root.Kloang = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

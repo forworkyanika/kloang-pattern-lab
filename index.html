@@ -157,6 +157,126 @@
             </div>
           </div>
         </section>
+
+        <!-- วิธีอ่าน equality matrix -->
+        <section class="panel">
+          <details id="matrix-guide" class="guide">
+            <summary><h2>วิธีอ่าน equality matrix</h2><span class="muted">คลิกเพื่อเปิด/ปิด</span></summary>
+            <p>Equality matrix <b>ไม่ใช่ attention ของโมเดล</b> — คำนวณจากตัวกลอนโดยตรงว่าตำแหน่งใดเป็นคำเดียวกัน จึงเปรียบได้กับ <b>“แผนที่ attention ในอุดมคติ”</b>: ถ้าโมเดลจะแต่งให้ถูกลาย ตอนสร้างตำแหน่ง b ควรดึงข้อมูลจากตำแหน่ง a ที่เป็นคำเดียวกัน</p>
+            <h3>1) องค์ประกอบ</h3>
+            <div class="table-wrap"><table class="plain">
+              <thead><tr><th>สิ่งที่เห็น</th><th>ความหมาย</th></tr></thead>
+              <tbody>
+                <tr><td>แถว / คอลัมน์</td><td>1 ช่อง = 1 พยางค์ เรียงตามลำดับการอ่าน ชื่อพยางค์กำกับที่ขอบ</td></tr>
+                <tr><td>เส้นแดงจาง</td><td>ขอบบาท — แบ่ง matrix เป็นบล็อก 4×4</td></tr>
+                <tr><td>เส้นทแยงสีเทา</td><td>ตำแหน่งเทียบกับตัวเอง (ข้ามได้)</td></tr>
+                <tr><td>ช่องดำ</td><td>สองตำแหน่งเป็นคำเดียวกัน (สมมาตร: ครึ่งบน = ครึ่งล่าง)</td></tr>
+                <tr><td>กรอบเขียว</td><td>กฎของต้นแบบที่กลอนนี้ <b>ผ่าน</b></td></tr>
+                <tr><td>กรอบแดง (มักไม่มีช่องดำ)</td><td>กฎที่ <b>ไม่ผ่าน</b> — ควรเป็นคำเดียวกันแต่ไม่ใช่</td></tr>
+                <tr><td>ช่องดำไม่มีกรอบ</td><td>คำซ้ำที่กฎไม่ได้บังคับ (คำซ้ำบังเอิญ เช่น “ใจ” ใน positive control)</td></tr>
+              </tbody>
+            </table></div>
+            <p><b>กฎสำคัญ: ระยะของช่องดำจากเส้นทแยง = ระยะคัดลอก Δ</b> — ชิดเส้นทแยงคือคำซ้ำติดกัน (ไม้ยมก, Δ = 1) ไกลเส้นทแยงคือต้องจำข้ามระยะยาว ช่องดำใน<b>บล็อกบนเส้นทแยง</b> = ซ้ำในบาทเดียวกัน (SAME) ส่วนใน<b>บล็อกนอกเส้นทแยง</b> = ซ้ำข้ามบาท (CROSS)</p>
+            <h3>2) ตัวอย่าง: ดาวล้อมเดือน 2 บาทแรก (ครึ่งล่าง เพราะโมเดลแบบ causal มองย้อนได้อย่างเดียว)</h3>
+<div class="table-wrap"><table class="mini-matrix"><thead><tr><th></th>
+<th>0</th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+<th>6</th>
+<th class="bnd">7</th>
+<th>8</th>
+<th>9</th>
+<th></th></tr></thead><tbody>
+<tr><th>0 ผล</th><td><span class="dg">╲</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="bnd"></td><td></td><td></td><td class="note"></td></tr>
+<tr><th>1 บุญ</th><td><span class="dot">·</span></td><td><span class="dg">╲</span></td><td></td><td></td><td></td><td></td><td></td><td class="bnd"></td><td></td><td></td><td class="note"></td></tr>
+<tr><th>2 บุญ</th><td><span class="dot">·</span></td><td><span class="eq">■</span></td><td><span class="dg">╲</span></td><td></td><td></td><td></td><td></td><td class="bnd"></td><td></td><td></td><td class="note">← ชิดเส้นทแยง: บุญ-บุญ (SAME, Δ=1)</td></tr>
+<tr><th>3 เกื้อ</th><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dg">╲</span></td><td></td><td></td><td></td><td class="bnd"></td><td></td><td></td><td class="note"></td></tr>
+<tr><th>4 กอบ</th><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dg">╲</span></td><td></td><td></td><td class="bnd"></td><td></td><td></td><td class="note"></td></tr>
+<tr><th>5 ยศ</th><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dg">╲</span></td><td></td><td class="bnd"></td><td></td><td></td><td class="note"></td></tr>
+<tr><th>6 ศักดิ์</th><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dg">╲</span></td><td class="bnd"></td><td></td><td></td><td class="note"></td></tr>
+<tr class="bndrow"><th>7 ผล</th><td><span class="eq">■</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td class="bnd"><span class="dg">╲</span></td><td></td><td></td><td class="note">← คอลัมน์แรก: ผล ข้ามบาท (CROSS, Δ=7)</td></tr>
+<tr><th>8 บาป</th><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td class="bnd"><span class="dot">·</span></td><td><span class="dg">╲</span></td><td></td><td class="note"></td></tr>
+<tr><th>9 บาป</th><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td><span class="dot">·</span></td><td class="bnd"><span class="dot">·</span></td><td><span class="eq">■</span></td><td><span class="dg">╲</span></td><td class="note">← SAME, Δ=1</td></tr>
+</tbody></table></div>
+            <h3>3) ลายเซ็นของแต่ละกลบท</h3>
+            <div class="table-wrap"><table class="plain">
+              <thead><tr><th>กลบท</th><th>รูปทรงใน matrix</th></tr></thead>
+              <tbody>
+                <tr><td>ดาวล้อมเดือน</td><td>จุดคู่ชิดเส้นทแยงทุกบล็อก + แถว/คอลัมน์ของจุดที่มุมซ้ายบนของทุกบล็อก (<code>ผล</code> = “เดือน” ที่ทุกบาทดึงกลับไปหา)</td></tr>
+                <tr><td>ธงนำริ้ว</td><td>จุดชิดเส้นทแยงที่ <b>ต้น</b> ทุกบล็อก</td></tr>
+                <tr><td>รักร้อย</td><td>จุดชิดเส้นทแยงที่ <b>กลาง</b> ทุกบล็อก (คำที่ 3–4)</td></tr>
+                <tr><td>ครอบจักรวาล</td><td>จุดที่ <b>มุมตรงข้าม</b> ในบล็อกเดียวกัน (คำแรก ↔ คำท้ายบาท)</td></tr>
+                <tr><td>สารถีขับรถ</td><td>จุดไขว้รูป <b>X</b> ในบล็อก (คำ 1↔7, 2↔6)</td></tr>
+                <tr><td>วัวพันหลัก / เก็บบาท</td><td>จุดที่ <b>รอยต่อระหว่างบล็อกที่ติดกัน</b> (ท้ายบาท ↔ ต้นบาทถัดไป) — CROSS แต่ Δ สั้น</td></tr>
+                <tr><td>ซ้ำสองแสนง</td><td>จุดชิดเส้นทแยงเหมือนกัน แต่ <b>ตำแหน่งเลื่อนไปมา</b> ในแต่ละบล็อก → กฎร่วมเหลือ 1 ข้อ</td></tr>
+              </tbody>
+            </table></div>
+            <p>ตอนตรวจผล: <b>negative control</b> จะเห็นกรอบแดง 2 จุดตรงที่ควรมีช่องดำ (ผลบาท 3 และคู่เท็จบาท 4) ส่วน <b>positive control</b> จะเห็นช่องดำเกิน 1 คู่ที่ไม่มีกรอบ (“ใจ”)</p>
+            <h3>4) เชื่อมกับ attention layer จริง</h3>
+            <p>Transformer คัดลอกคำผ่าน attention ถ้ากฎบอกว่าตำแหน่ง b ต้องเป็นคำเดียวกับ a head ที่ทำหน้าที่คัดลอกควรให้น้ำหนักสูงที่ a ตอนสร้าง b — ช่องดำครึ่งล่างจึงเป็น<b>เป้าหมาย</b>ที่ attention ควรออกมาใกล้เคียง วัดด้วย</p>
+            <p class="formula">rule_attention(a, b) = A[b, a] / Σ<sub>j</sub> A[b, j]</p>
+            <p class="muted">ในโมเดลทำนาย token ถัดไป การสร้าง token ที่ b ใช้ query จากตำแหน่ง b−1 แผนที่จริงจึงมักเลื่อน 1 ช่อง (หรือเป็นแบบ induction head) — ส่วนด้านล่างมีตัวเลือกเลื่อน query ให้ · attention สูงไม่ได้พิสูจน์ว่าโมเดล “เข้าใจ” กฎ ใช้เป็นหลักฐานเสริมคู่กับคะแนนผ่านกฎเสมอ</p>
+          </details>
+        </section>
+
+        <!-- เทียบกับ attention จริง -->
+        <section class="panel">
+          <div class="panel-head">
+            <h2>เทียบกับ attention จริงของโมเดล <span class="muted">(กลอนที่เลือก)</span></h2>
+            <div class="row-actions">
+              <button id="btn-attn-template" class="btn small" type="button">ดาวน์โหลดพยางค์ + ตัวอย่าง JSON</button>
+              <label class="btn small primary file-btn">นำเข้า attention (JSON)<input id="file-attn" type="file" accept="application/json,.json" hidden></label>
+              <button id="btn-attn-clear" class="btn small ghost" type="button">ล้าง</button>
+            </div>
+          </div>
+          <label class="inline"><input id="attn-shift" type="checkbox"> เลื่อน query 1 ตำแหน่ง (ใช้แถว b−1 แทน b — ตามการทำนาย token ถัดไป)</label>
+          <div id="attn-out"><p class="empty">ยังไม่ได้นำเข้า — ไฟล์ต้องมี <code>syllables</code> (ตรงกับกลอนที่เลือก) และ <code>attention</code> เป็น matrix N×N ระดับพยางค์ ดูวิธีสร้างไฟล์ด้านล่าง</p></div>
+          <details class="guide small-guide">
+            <summary><b>สคริปต์ Python: ดึง attention จากโมเดล (หรือโมเดล + LoRA ที่ merge แล้ว) เป็นระดับพยางค์</b></summary>
+<pre class="code">import json, torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+model_id = "ชื่อโมเดลหรือโฟลเดอร์ที่ merge LoRA แล้ว"
+tok = AutoTokenizer.from_pretrained(model_id)            # ต้องเป็น fast tokenizer (มี offset)
+model = AutoModelForCausalLM.from_pretrained(model_id, attn_implementation="eager")
+
+data = json.load(open("kloang-syllables.json", encoding="utf-8"))   # จากปุ่มดาวน์โหลดในเว็บ
+syllables = data["syllables"]
+text = "".join(syllables)
+bounds, pos = [], 0
+for s in syllables:
+    bounds.append((pos, pos + len(s))); pos += len(s)
+def syl_of(c):  # token ที่คร่อม 2 พยางค์ นับเป็นพยางค์ที่ token เริ่ม (ค่าประมาณ)
+    return next(i for i, (a, b) in enumerate(bounds) if a &lt;= c &lt; b)
+
+enc = tok(text, return_offsets_mapping=True, return_tensors="pt")
+offsets = enc.pop("offset_mapping")[0].tolist()
+tok2syl = [syl_of(s) if e &gt; s else None for s, e in offsets]
+
+with torch.no_grad():
+    out = model(**enc, output_attentions=True)
+
+LAYER, HEAD = -1, None                    # ชั้นสุดท้าย; None = เฉลี่ยทุก head
+A = out.attentions[LAYER][0]              # [heads, T, T]
+A = A.mean(0) if HEAD is None else A[HEAD]
+
+N = len(syllables)
+S = torch.zeros(N, N)
+for i, si in enumerate(tok2syl):
+    for j, sj in enumerate(tok2syl):
+        if si is not None and sj is not None:
+            S[si, sj] += A[i, j]
+S = S / S.sum(1, keepdim=True).clamp_min(1e-9)   # normalize ต่อแถว
+
+json.dump({"syllables": syllables, "attention": S.tolist(),
+           "meta": {"model": model_id, "layer": LAYER, "head": HEAD}},
+          open("attention.json", "w", encoding="utf-8"), ensure_ascii=False)</pre>
+            <p class="muted small">แนะนำให้วนหลายชั้น/หลาย head แล้วนำเข้าทีละไฟล์ — หน้าที่คัดลอกมักอยู่ใน head เฉพาะ ไม่ใช่ค่าเฉลี่ย · เทียบไฟล์จากโมเดลก่อนและหลังเทรน LoRA</p>
+          </details>
+        </section>
       </section>
     </main>
   </section>

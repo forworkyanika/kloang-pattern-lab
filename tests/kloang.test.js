@@ -106,4 +106,20 @@ assert.strictEqual(K.intersectRules(byType("ซ้ำสองแสนง")).le
 const wua = K.extractRules(byType("วัวพันหลัก")[0]);
 assert.ok(wua.length === 3 && wua.every((r) => r.kind === "CROSS"));
 
+// ---- attention comparison ----
+const ideal = K.idealAttention(original);
+assert.strictEqual(ideal.length, 32);
+ideal.forEach((row, i) => {
+  assert.ok(Math.abs(row.reduce((a, b) => a + b, 0) - 1) < 1e-12);       // normalize ต่อแถว
+  assert.ok(row.slice(i + 1).every((v) => v === 0));                       // causal
+});
+const ra = K.ruleAttention(ideal, original, K.extractRules(original), false);
+assert.strictEqual(ra.all.n, 7);
+assert.strictEqual(ra.all.top1, 1);              // attention ในอุดมคติ: ต้นทางได้อันดับ 1 ทุกกฎ
+assert.strictEqual(ra.same.n, 4);
+assert.strictEqual(ra.cross.n, 3);
+// attention แบบสุ่มเท่ากัน → lift = 1
+const uniform = ideal.map((row, i) => row.map((_, j) => (j <= i ? 1 / (i + 1) : 0)));
+assert.ok(Math.abs(K.ruleAttention(uniform, original, K.extractRules(original), false).all.lift - 1) < 1e-12);
+
 console.log("all tests passed ✓");

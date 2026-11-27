@@ -115,6 +115,7 @@
     renderRules(rules);
     renderResults(rules);
     renderDetail(rules);
+    renderAttention();
     if ($("tab-lora").classList.contains("active")) renderLora();
     save();
   }
@@ -290,6 +291,120 @@
     });
     return s + "</svg>";
   }
+
+  // ---------- attention comparison ----------
+  const attnByPoem = new Map(); // เก็บในหน่วยความจำเท่านั้น (ไฟล์ attention อาจใหญ่)
+
+  function renderAttention() {
+    const out = $("attn-out");
+    const p = selected();
+    const att = attnByPoem.get(p.id);
+    const poem = parsed(p);
+    if (!att) {
+      out.innerHTML = `<p class="empty">ยังไม่ได้นำเข้าสำหรับ “${esc(p.name)}” — ไฟล์ต้องมี <code>syllables</code> (ตรงกับกลอนที่เลือก) และ <code>attention</code> เป็น matrix N×N ระดับพยางค์ · ลองกด “ดาวน์โหลดพยางค์ + ตัวอย่าง JSON” แล้วนำเข้าไฟล์นั้นเพื่อดูผลของ attention ในอุดมคติ</p>`;
+      return;
+    }
+    const shift = $("attn-shift").checked;
+    const rules = K.extractRules(poem);
+    const res = K.ruleAttention(att.attention, poem, rules, shift);
+    const fmt = (s) => s ? `${s.mean.toFixed(3)} <span class="muted">(×${s.lift.toFixed(1)} ของสุ่ม · top-1 ${pct(s.top1)})</span>` : "—";
+    const meta = att.meta ? Object.entries(att.meta).map(([k, v]) => `${esc(k)}: ${esc(v)}`).join(" · ") : "";
+    out.innerHTML = `
+      <p class="small">${meta ? `ไฟล์: ${meta} · ` : ""}เทียบกับกฎของบทนี้เอง ${rules.length} ข้อ ${shift ? "(ใช้แถว b−1)" : "(ใช้แถว b)"}</p>
+      <div class="table-wrap"><table class="results compact">
+        <thead><tr><th>กลุ่ม</th><th>จำนวนกฎ</th><th>attention เฉลี่ยที่ตำแหน่งต้นทาง</th></tr></thead>
+        <tbody>
+          <tr><td><b>ทั้งหมด</b></td><td class="num">${res.all ? res.all.n : 0}</td><td>${fmt(res.all)}</td></tr>
+          <tr><td><span class="tag SAME">SAME</span></td><td class="num">${res.same ? res.same.n : 0}</td><td>${fmt(res.same)}</td></tr>
+          <tr><td><span class="tag CROSS">CROSS</span></td><td class="num">${res.cross ? res.cross.n : 0}</td><td>${fmt(res.cross)}</td></tr>
+        </tbody></table></div>
+      <div class="detail-grid">
+        <div>
+          <h3>รายกฎ</h3>
+          <table class="refs">${res.rules.map((r) => `<tr><td><span class="tag ${r.kind}">${r.kind}</span></td>
+            <td class="mono">${K.posLabel(r.a)} → ${K.posLabel(r.b)}</td><td>${esc(K.tokenAt(poem, r.a))}</td>
+            <td class="num">${r.value.toFixed(3)}</td><td class="num muted">อันดับ ${r.rank}</td></tr>`).join("") || `<tr><td class="empty">บทนี้ไม่มีคำซ้ำ</td></tr>`}</table>
+          <p class="muted small">อ่านค่า: attention ของแถวเป้าหมายที่ตกบนตำแหน่งต้นทาง (normalize เฉพาะส่วน causal) · “×ของสุ่ม” เทียบกับการกระจายเท่ากันทุกตำแหน่งก่อนหน้า · อันดับ 1 = ตำแหน่งต้นทางได้ attention มากที่สุดในแถว</p>
+        </div>
+        <div>
+          <h3>Attention map <span class="muted">(ครึ่งล่าง · เข้ม = มาก · กรอบเขียว = ต้นทางได้อันดับ 1 · ส้ม = ไม่ใช่)</span></h3>
+          <div class="matrix">${attentionSVG(poem, att.attention, res.rules)}</div>
+        </div>
+      </div>`;
+  }
+
+  function attentionSVG(poem, A, ruleRes) {
+    const flat = K.flattenWithPos(poem);
+    const N = flat.length;
+    const cell = N > 40 ? 12 : N > 28 ? 15 : 18;
+    const pad = 50, size = pad + N * cell + 4;
+    let s = `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" font-family="Sarabun, sans-serif" role="img" aria-label="attention map">`;
+    s += `<rect x="${pad}" y="${pad}" width="${N * cell}" height="${N * cell}" fill="#fbfaf7" stroke="#e3e0d8"/>`;
+    for (let i = 0; i < N; i++) {
+      const row = (A[i] || []).slice(0, i + 1).map((v) => Math.max(0, Number(v) || 0));
+      const mx = Math.max(...row, 1e-12);
+      row.forEach((v, j) => {
+        const t = v / mx;
+        if (t < 0.02) return;
+        s += `<rect x="${pad + j * cell}" y="${pad + i * cell}" width="${cell}" height="${cell}" fill="#2f5fa7" fill-opacity="${(0.08 + 0.92 * t).toFixed(3)}"><title>${esc(flat[i].token)} → ${esc(flat[j].token)}: ${v.toFixed(3)}</title></rect>`;
+      });
+    }
+    for (const r of ruleRes) {
+      const color = r.rank === 1 ? "#1f7a4d" : "#c58b1a";
+      s += `<rect x="${pad + r.ia * cell + 0.5}" y="${pad + r.row * cell + 0.5}" width="${cell - 1}" height="${cell - 1}" fill="none" stroke="${color}" stroke-width="2"><title>${esc(K.posLabel(r.a))} → ${esc(K.posLabel(r.b))}: ${r.value.toFixed(3)} (อันดับ ${r.rank})</title></rect>`;
+    }
+    for (let i = 1; i < N; i++) if (flat[i].pos.bat !== flat[i - 1].pos.bat) {
+      const v = pad + i * cell;
+      s += `<line x1="${v}" y1="${pad}" x2="${v}" y2="${pad + N * cell}" stroke="#c0392b" stroke-width="1" opacity=".5"/>`;
+      s += `<line x1="${pad}" y1="${v}" x2="${pad + N * cell}" y2="${v}" stroke="#c0392b" stroke-width="1" opacity=".5"/>`;
+    }
+    const fs = Math.max(8, cell - 6);
+    flat.forEach((t, i) => {
+      const c = pad + i * cell + cell / 2;
+      s += `<text x="${pad - 4}" y="${c + fs / 3}" font-size="${fs}" text-anchor="end" fill="#444">${esc(t.token)}</text>`;
+      s += `<text transform="translate(${c + fs / 3},${pad - 4}) rotate(-90)" font-size="${fs}" fill="#444">${esc(t.token)}</text>`;
+    });
+    return s + "</svg>";
+  }
+
+  $("attn-shift").addEventListener("change", renderAttention);
+  $("btn-attn-clear").addEventListener("click", () => { attnByPoem.delete(selected().id); renderAttention(); });
+  $("btn-attn-template").addEventListener("click", () => {
+    const p = selected();
+    const poem = parsed(p);
+    if (!poem.length) { alertInline("กลอนนี้ยังไม่มีเนื้อหา"); return; }
+    const data = {
+      poem: p.name,
+      syllables: K.flattenWithPos(poem).map((t) => t.token),
+      attention: K.idealAttention(poem),
+      meta: { source: "ideal (equality matrix)", note: "ตัวอย่าง — แทนที่ attention ด้วยค่าจริงจากโมเดลด้วยสคริปต์ Python" },
+    };
+    download("kloang-syllables.json", JSON.stringify(data), "application/json");
+  });
+  $("file-attn").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const p = selected();
+    const want = K.flattenWithPos(parsed(p)).map((t) => t.token);
+    try {
+      const data = JSON.parse(await file.text());
+      const A = data.attention;
+      if (!Array.isArray(A) || !A.length || !A.every((r) => Array.isArray(r))) throw new Error("attention ต้องเป็น matrix");
+      if (A.length !== want.length || A.some((r) => r.length !== want.length))
+        throw new Error(`ขนาด attention ${A.length}×${(A[0] || []).length} ไม่ตรงกับกลอนที่เลือก (${want.length} พยางค์)`);
+      if (Array.isArray(data.syllables)) {
+        const bad = data.syllables.findIndex((s, i) => s !== want[i]);
+        if (data.syllables.length !== want.length || bad >= 0)
+          throw new Error(`พยางค์ไม่ตรงกับกลอนที่เลือก${bad >= 0 ? ` (ตำแหน่ง ${bad}: “${data.syllables[bad]}” ≠ “${want[bad]}”)` : ""}`);
+      }
+      attnByPoem.set(p.id, { attention: A, meta: data.meta || null });
+      renderAttention();
+      $("attn-out").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (err) {
+      $("attn-out").innerHTML = `<p class="warn">นำเข้าไม่ได้: ${esc(err.message)}</p>`;
+    }
+    e.target.value = "";
+  });
 
   // ---------- LoRA analysis ----------
   function distanceKinds(poem) {
