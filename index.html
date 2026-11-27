@@ -7,110 +7,360 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="edu-banner" role="note">
+    <b>เพื่อการศึกษาเท่านั้น</b> — โปรแกรมนี้ใช้ศึกษาโครงสร้างกลบทไทยและแนวทางเตรียมข้อมูลสำหรับการวิจัย ไม่มีเจตนาอื่น
+  </div>
+
   <header class="topbar">
     <div>
       <h1>Kloang Pattern Lab</h1>
-      <p class="sub">ทดลองลายกลบทด้วย first-occurrence encoding ระดับทั้งบท — ใส่กลอนเอง เลือกต้นแบบ แล้วตรวจหลายบทพร้อมกัน</p>
+      <p class="sub">แปลงกลบทไทยเป็นโครงสร้างทางคณิตศาสตร์ ตรวจลายด้วยโปรแกรม และวิเคราะห์ผลต่อการเทรน LoRA</p>
     </div>
-    <details class="help">
-      <summary>วิธีใช้</summary>
-      <ol>
-        <li>พิมพ์กลอน <b>1 บรรทัด = 1 บาท</b>, เว้นวรรค<b>ระหว่างพยางค์</b>, ใช้ <code>|</code> คั่นวรรค (วรรคที่ 3 = คำสร้อย)</li>
-        <li>ติ๊ก <b>ต้นแบบ</b> เพื่อใช้ดึงกฎ — ติ๊กหลายบทจะได้เฉพาะกฎที่ทุกบทมีร่วมกัน (intersection)</li>
-        <li>ติ๊ก <b>ทดสอบ</b> กับกลอนที่ต้องการตรวจ แล้วดูผลในตารางเปรียบเทียบ</li>
-        <li>ปิดกฎบางข้อได้ในรายการกฎ เพื่อทดลองว่ากฎไหนสำคัญ</li>
-        <li>ข้อมูลเก็บในเบราว์เซอร์นี้เท่านั้น — ใช้ “ส่งออก JSON” เพื่อสำรอง</li>
-      </ol>
-    </details>
   </header>
 
-  <main class="layout">
-    <!-- คลังกลอน -->
-    <aside class="panel library">
-      <div class="panel-head">
-        <h2>คลังกลอน</h2>
-        <button id="btn-new" class="btn primary" type="button">+ เพิ่มกลอน</button>
-      </div>
-      <div class="legend"><span>ต้นแบบ</span><span>ทดสอบ</span><span>ชื่อ</span></div>
-      <ul id="poem-list" class="poem-list"></ul>
-      <div class="lib-actions">
-        <button id="btn-export" class="btn" type="button">ส่งออก JSON</button>
-        <label class="btn file-btn">นำเข้า JSON<input id="file-import" type="file" accept="application/json,.json" hidden></label>
-        <button id="btn-reset" class="btn ghost" type="button">คืนค่าตัวอย่าง</button>
-      </div>
-    </aside>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="purpose" class="active">1 · จุดประสงค์</button>
+    <button role="tab" data-tab="lab">2 · ทดลอง</button>
+    <button role="tab" data-tab="lora">3 · วิเคราะห์ผลต่อ LoRA</button>
+    <button role="tab" data-tab="math">4 · คณิตศาสตร์</button>
+    <button role="tab" data-tab="security">5 · Security × LoRA</button>
+    <button role="tab" data-tab="sources">6 · แหล่งที่มาของโคลง</button>
+  </nav>
 
-    <section class="content">
-      <!-- Editor -->
-      <section class="panel">
+  <!-- ===================== 1. PURPOSE ===================== -->
+  <section id="tab-purpose" class="tab-page active">
+    <div class="prose">
+      <h2>โปรแกรมนี้ทำไปเพื่ออะไร</h2>
+      <p class="lead">กลบทคือโคลงที่มี “กฎเพิ่ม” ซ้อนบนฉันทลักษณ์ปกติ เช่น ต้องซ้ำคำที่ตำแหน่งหนึ่ง หรือคำท้ายบาทต้องเป็นคำแรกของบาทถัดไป โปรแกรมนี้แปลงกฎเหล่านั้นให้เป็น<b>โครงสร้างทางคณิตศาสตร์ที่คอมพิวเตอร์ตรวจได้</b> เพื่อใช้ศึกษาและเตรียมข้อมูลก่อนเทรนโมเดล</p>
+
+      <div class="cards">
+        <div class="card"><h3>① นิยามกลบทให้ตรวจได้</h3><p>แทนกลอนด้วย “กลุ่มตำแหน่งที่เป็นคำเดียวกัน” (partition) แล้วดึงเป็นกฎ เช่น <code>บ1.ว0.0 = บ2.ว0.0</code> ซึ่งไม่ขึ้นกับคำศัพท์</p></div>
+        <div class="card"><h3>② สร้างชุดข้อมูลกลบท</h3><p>รวมกลบทคลาสสิกจากจารึกวัดพระเชตุพนฯ และจินดามณี พร้อมที่มา ตรวจว่าแต่ละบทเข้ากับลายของชนิดตัวเองจริง</p></div>
+        <div class="card"><h3>③ ประเมินก่อนเทรน LoRA</h3><p>วัดว่าลายแต่ละแบบ “สอน” อะไรให้โมเดล — ระยะคัดลอก คำซ้ำบังเอิญ ความหลากหลายของลาย — ก่อนเสียเวลา GPU</p></div>
+        <div class="card"><h3>④ เรียนรู้ความปลอดภัย</h3><p>ใช้ตัวตรวจลายเป็นเครื่องมือป้องกันข้อมูลปนเปื้อน และฝึกแนวปฏิบัติด้าน security ของการ fine-tune</p></div>
+      </div>
+
+      <h2>ขั้นตอนการใช้งาน</h2>
+      <ol class="steps">
+        <li><b>ทดลอง</b> — ใส่กลอนเอง หรือใช้ 12 บทตัวอย่าง ติ๊ก “ต้นแบบ” เพื่อดึงกฎ และติ๊ก “ทดสอบ” เพื่อตรวจ</li>
+        <li><b>วิเคราะห์ผลต่อ LoRA</b> — ดูว่าลายของแต่ละบท/แต่ละชนิดจะส่งผลต่อการเรียนของโมเดลอย่างไร และควรแก้ข้อมูลตรงไหน</li>
+        <li><b>คณิตศาสตร์</b> — นิยามและทฤษฎีที่อยู่เบื้องหลังทุกตัวเลขในหน้าจอ</li>
+        <li><b>Security × LoRA</b> — เทคนิคป้องกันที่ประยุกต์กับโครงการนี้ พร้อมเครื่องมือตรวจชุดข้อมูล</li>
+      </ol>
+
+      <h2 id="controls">Negative control (ลายเสีย) คืออะไร</h2>
+      <p><b>กลุ่มควบคุม (control)</b> คือตัวอย่างที่เรา<b>รู้คำตอบล่วงหน้า</b> ใช้พิสูจน์ว่าเครื่องมือวัดทำงานถูก เหมือนชุดตรวจโควิดที่มีแถบควบคุม ถ้าตัวตรวจให้ “ผ่าน” กับทุกอย่าง มันก็ไร้ประโยชน์ — negative control มีไว้จับปัญหานี้</p>
+      <div class="table-wrap">
+        <table class="plain">
+          <thead><tr><th>ตัวอย่าง</th><th>สร้างอย่างไร</th><th>ผลที่ต้องได้</th><th>ถ้าผลไม่ตรง แปลว่า</th></tr></thead>
+          <tbody>
+            <tr><td><b>ต้นฉบับ</b></td><td>กลโคลงดาวล้อมเดือนจากจารึก</td><td>ผ่าน 7/7 (100%)</td><td>ดึงกฎผิด</td></tr>
+            <tr><td><b>Positive control</b><br><span class="muted">(ลายเดียวกัน คำใหม่)</span></td><td>เปลี่ยนคำทุกคำ แต่คงตำแหน่งคำซ้ำ</td><td>ผ่าน 7/7 (100%)</td><td>ตัวตรวจไปจำ “คำ” แทน “ลาย”</td></tr>
+            <tr><td><b>Negative control</b><br><span class="muted">(ลายเสีย)</span></td><td>แก้ต้นฉบับ 2 จุดโดยตั้งใจ:<br>• บาท 3 เปลี่ยน <code>ผล</code>→<code>เมื่อ</code> (ทำลายกฎข้ามบาท)<br>• บาท 4 เปลี่ยน <code>เท็จ เท็จ</code>→<code>เท็จ โทษ</code> (ทำลายคำซ้ำในบาท)</td><td>ผ่าน 5/7 (71%) และชี้ 2 ตำแหน่งที่เสียได้ถูก</td><td>ตัวตรวจหละหลวม / มี bug</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">ในงานวิจัย ผลของ control ทั้งสามต้องออกมาตามคาดก่อน จึงจะเชื่อผลกับกลอนจริงได้</p>
+
+      <div class="notice">
+        <h3>ขอบเขตการใช้งาน</h3>
+        <p>โปรแกรมนี้จัดทำ<b>เพื่อการศึกษาเท่านั้น</b> ไม่มีเจตนาอื่น ไม่ได้เทรนโมเดลจริงในเบราว์เซอร์ และไม่เก็บข้อมูลใดออกนอกเครื่อง (ข้อมูลอยู่ใน localStorage ของเบราว์เซอร์) เนื้อหาด้าน security เป็นมุมมองฝั่งป้องกัน ตัวอย่างกลอนเป็นงานคลาสสิกที่พ้นอายุลิขสิทธิ์ การแบ่งพยางค์ทำโดยผู้พัฒนาและควรตรวจกับต้นฉบับก่อนใช้อ้างอิง</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 2. LAB ===================== -->
+  <section id="tab-lab" class="tab-page">
+    <main class="layout">
+      <aside class="panel library">
         <div class="panel-head">
-          <h2>แก้ไขกลอน</h2>
-          <div class="row-actions">
-            <button id="btn-segment" class="btn" type="button" title="ใช้ตัวตัดคำของเบราว์เซอร์ — ต้องตรวจและแก้ให้เป็นพยางค์เอง">ตัดคำอัตโนมัติ</button>
-            <button id="btn-delete" class="btn danger" type="button">ลบ</button>
-          </div>
+          <h2>คลังกลอน</h2>
+          <button id="btn-new" class="btn primary" type="button">+ เพิ่มกลอน</button>
         </div>
-        <input id="poem-name" class="name-input" type="text" placeholder="ชื่อกลอน" aria-label="ชื่อกลอน">
-        <textarea id="poem-text" rows="5" spellcheck="false" aria-label="เนื้อกลอน"
-          placeholder="ผล บุญ บุญ เกื้อ กอบ | ยศ ศักดิ์"></textarea>
-        <div id="poem-meta" class="meta"></div>
-      </section>
+        <div class="legend"><span>ต้นแบบ</span><span>ทดสอบ</span><span>ชื่อ</span></div>
+        <ul id="poem-list" class="poem-list"></ul>
+        <div class="lib-actions">
+          <button id="btn-export" class="btn" type="button">ส่งออก JSON</button>
+          <label class="btn file-btn">นำเข้า JSON<input id="file-import" type="file" accept="application/json,.json" hidden></label>
+          <button id="btn-reset" class="btn ghost" type="button">คืนค่าตัวอย่าง</button>
+        </div>
+        <details class="help small-help">
+          <summary>รูปแบบการพิมพ์</summary>
+          <p>1 บรรทัด = 1 บาท · เว้นวรรคระหว่างพยางค์ · <code>|</code> คั่นวรรค (วรรคที่ 3 = คำสร้อย) · <code>ๆ</code> ขยายเป็นคำก่อนหน้าอัตโนมัติ</p>
+        </details>
+      </aside>
 
-      <!-- Rules -->
-      <section class="panel">
-        <div class="panel-head">
-          <h2>กฎของกลบท <span id="rule-source" class="muted"></span></h2>
-          <div class="row-actions">
+      <section class="content">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>แก้ไขกลอน</h2>
+            <div class="row-actions">
+              <button id="btn-segment" class="btn" type="button" title="ใช้ตัวตัดคำของเบราว์เซอร์ — ต้องตรวจและแก้ให้เป็นพยางค์เอง">ตัดคำอัตโนมัติ</button>
+              <button id="btn-delete" class="btn danger" type="button">ลบ</button>
+            </div>
+          </div>
+          <div class="edit-row">
+            <input id="poem-name" class="name-input" type="text" placeholder="ชื่อกลอน" aria-label="ชื่อกลอน">
+            <input id="poem-type" class="type-input" type="text" list="type-options" placeholder="ชนิดกลบท" aria-label="ชนิดกลบท">
+            <datalist id="type-options"></datalist>
+          </div>
+          <textarea id="poem-text" rows="5" spellcheck="false" aria-label="เนื้อกลอน" placeholder="ผล บุญ บุญ เกื้อ กอบ | ยศ ศักดิ์"></textarea>
+          <div id="poem-meta" class="meta"></div>
+          <div id="poem-info" class="info"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>กฎของกลบท <span id="rule-source" class="muted"></span></h2>
             <button id="btn-rules-all" class="btn small" type="button">เปิดทั้งหมด</button>
           </div>
-        </div>
-        <div id="ref-pattern"></div>
-        <ul id="rule-list" class="rule-list"></ul>
-      </section>
+          <div id="ref-pattern"></div>
+          <ul id="rule-list" class="rule-list"></ul>
+        </section>
 
-      <!-- Comparison -->
+        <section class="panel">
+          <div class="panel-head">
+            <h2>ผลเปรียบเทียบ</h2>
+            <div class="row-actions">
+              <button id="btn-csv" class="btn small" type="button">ส่งออก CSV</button>
+              <button class="btn small primary" type="button" data-goto="lora">วิเคราะห์ผลต่อ LoRA →</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="results">
+              <thead><tr><th>กลอน</th><th>ชนิด</th><th>โครง</th><th>ผ่านกฎ</th><th>ลายตรงทุกตัว</th><th>กฎที่ไม่ผ่าน</th></tr></thead>
+              <tbody id="results-body"></tbody>
+            </table>
+          </div>
+          <p class="muted small">ไม่เข้าใจแถว “ลายเสีย”? ดู <a href="#controls" data-goto="purpose">คำอธิบาย negative control</a></p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h2>รายละเอียด: <span id="detail-name"></span></h2></div>
+          <div class="detail-grid">
+            <div>
+              <h3>ลายทั้งบท (restricted growth string)</h3>
+              <div id="detail-pattern"></div>
+              <h3>ลายสัมพัทธ์ต่อบาท (prev-encoding)</h3>
+              <div id="detail-prev"></div>
+              <h3>คำที่ซ้ำ (back-reference)</h3>
+              <div id="detail-refs"></div>
+            </div>
+            <div>
+              <h3>Equality matrix <span class="muted">(ดำ = คำเดียวกัน · กรอบเขียว/แดง = กฎผ่าน/ไม่ผ่าน)</span></h3>
+              <div id="matrix" class="matrix"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </section>
+
+  <!-- ===================== 3. LORA ANALYSIS ===================== -->
+  <section id="tab-lora" class="tab-page">
+    <div class="wide">
+      <div class="prose">
+        <h2>ลายแต่ละแบบส่งผลต่อการเทรน LoRA อย่างไร</h2>
+        <p class="lead" id="lora-lead"></p>
+        <p class="muted">วิเคราะห์จากกลอนที่ติ๊ก “ทดสอบ” ในแท็บทดลอง · เป็นการวิเคราะห์โครงสร้างข้อมูล<b>ก่อน</b>เทรน ไม่ได้เทรน LoRA จริง · สูตรทั้งหมดอยู่ในแท็บคณิตศาสตร์ §10–§11</p>
+      </div>
+
       <section class="panel">
         <div class="panel-head">
-          <h2>ผลเปรียบเทียบ</h2>
-          <button id="btn-csv" class="btn small" type="button">ส่งออก CSV</button>
+          <h2>สิ่งที่แต่ละบทจะ “สอน” โมเดล</h2>
+          <label class="inline">ขนาดคลังพยางค์ V <input id="vocab-size" type="number" min="2" step="100" value="3000"></label>
         </div>
         <div class="table-wrap">
-          <table class="results">
-            <thead>
-              <tr><th>กลอน</th><th>โครง</th><th>ผ่านกฎ</th><th>ลายตรงทุกตัว</th><th>กฎที่ไม่ผ่าน</th></tr>
-            </thead>
-            <tbody id="results-body"></tbody>
+          <table class="results" id="lora-table">
+            <thead><tr>
+              <th>กลอน</th><th>ชนิด</th><th title="จำนวนหน่วย">N</th>
+              <th title="จำนวนกฎของบทนี้ = N − จำนวนคำต่างกัน">กฎ (SAME/CROSS)</th>
+              <th title="สัดส่วนตำแหน่งที่เป็นเป้าการคัดลอก">ความหนาแน่น ρ</th>
+              <th title="ระยะไปยังคำเดียวกันก่อนหน้าที่ใกล้สุด (หน่วย)">ระยะคัดลอก Δ เฉลี่ย / สูงสุด</th>
+              <th title="คู่คำซ้ำที่กฎร่วมของชนิดไม่ได้บังคับ">คู่ซ้ำนอกกฎชนิด</th>
+              <th title="ผ่านกฎร่วมของชนิด">ผ่านกฎชนิด</th>
+              <th title="|R_type| · log2 V">ข้อมูลข้อบังคับ (bits)</th>
+              <th>ผลต่อ LoRA</th>
+            </tr></thead>
+            <tbody id="lora-body"></tbody>
           </table>
         </div>
       </section>
 
-      <!-- Detail -->
       <section class="panel">
-        <div class="panel-head"><h2>รายละเอียด: <span id="detail-name"></span></h2></div>
-        <div class="detail-grid">
-          <div>
-            <h3>ลายทั้งบท</h3>
-            <div id="detail-pattern"></div>
-            <h3>คำที่ซ้ำ (back-reference)</h3>
-            <div id="detail-refs"></div>
-          </div>
-          <div>
-            <h3>Equality matrix <span class="muted">(ดำ = คำเดียวกัน · เขียว/แดง = กฎผ่าน/ไม่ผ่าน)</span></h3>
-            <div id="matrix" class="matrix"></div>
-          </div>
+        <div class="panel-head"><h2>สรุปตามชนิดกลบท</h2></div>
+        <div class="table-wrap">
+          <table class="results">
+            <thead><tr><th>ชนิด</th><th>จำนวนบท</th><th>กฎร่วม (meet)</th><th>กฎเฉลี่ยต่อบท</th><th>สถานะชุดข้อมูล</th></tr></thead>
+            <tbody id="type-body"></tbody>
+          </table>
         </div>
       </section>
-    </section>
-  </main>
+
+      <div class="two-col">
+        <section class="panel">
+          <div class="panel-head"><h2>ความหลากหลายของลายในชุดข้อมูล</h2></div>
+          <div id="sv-chart"></div>
+          <p id="sv-text" class="small"></p>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h2>การกระจายระยะคัดลอก Δ</h2></div>
+          <div id="dist-chart"></div>
+          <p id="dist-text" class="small"></p>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head"><h2>ข้อเสนอแนะก่อนเทรน (สร้างอัตโนมัติจากข้อมูลชุดนี้)</h2></div>
+        <ul id="lora-recs" class="recs"></ul>
+      </section>
+    </div>
+  </section>
+
+  <!-- ===================== 4. MATH ===================== -->
+  <section id="tab-math" class="tab-page">
+    <div class="prose math">
+      <h2>Mathematical formulation</h2>
+      <p class="lead">ทุกตัวเลขในโปรแกรมมาจากแนวคิดเดียว: <b>ลายของกลบท = การแบ่งตำแหน่งออกเป็นกลุ่มคำเดียวกัน (set partition)</b> ส่วนที่เหลือคือวิธีเขียน ตรวจ เปรียบเทียบ และนับ partition นั้น</p>
+
+      <h3>§1 กลอนเป็นฟังก์ชันบนเซตตำแหน่ง</h3>
+      <p>ให้เซตตำแหน่งของกลอนหนึ่งบทเป็น</p>
+      $$P=\{(b,w,k)\},\qquad b\in\{1,\dots,4\}\ (\text{บาท}),\; w\in\{0,1,2\}\ (\text{วรรค}),\; k\ (\text{ลำดับในวรรค})$$
+      <p>เรียงตามลำดับการอ่าน (lexicographic) \(p_1\prec p_2\prec\dots\prec p_N\) และเขียนดัชนี \(i(p)\) กลอนคือฟังก์ชัน</p>
+      $$x:P\to\Sigma$$
+      <p>โดย \(\Sigma\) คือคลังพยางค์ เช่น \(x(1,0,0)=\text{ผล}\) ในโปรแกรม \(P\) คือผลของ <code>flattenWithPos</code></p>
+
+      <h3>§2 โครงสร้าง = partition จาก kernel ของ \(x\)</h3>
+      $$p\sim_x q \iff x(p)=x(q),\qquad \Pi(x)=P/{\sim_x}$$
+      <p><b>ทฤษฎีบท (ไม่แปรเปลี่ยนต่อการเปลี่ยนคำ)</b> ถ้า \(\sigma:\Sigma\to\Sigma'\) เป็นฟังก์ชันหนึ่งต่อหนึ่ง แล้ว</p>
+      $$\Pi(\sigma\circ x)=\Pi(x)$$
+      <p><i>พิสูจน์</i> \(\sigma(x(p))=\sigma(x(q))\iff x(p)=x(q)\) เพราะ \(\sigma\) หนึ่งต่อหนึ่ง ∎ — นี่คือเหตุผลที่ positive control (เปลี่ยนคำทุกคำ) ยังได้ลายเดิม</p>
+
+      <h3>§3 รหัสมาตรฐาน 3 แบบที่เทียบเท่ากัน</h3>
+      <p><b>First-occurrence</b> (Method 4):</p>
+      $$f(p)=\min_{\prec}\{\,q\in P : x(q)=x(p)\,\}$$
+      <p><b>Restricted growth string</b> (ลายตัวอักษร A B B C …):</p>
+      $$r(p)=\bigl|\{\,f(q): q\preceq p\,\}\bigr|,\qquad r(p_1)=1,\quad r(p_{j+1})\le 1+\max_{i\le j} r(p_i)$$
+      <p><b>Prev-encoding</b> (Method 5 · Baker 1993):</p>
+      $$d(p)=\begin{cases} i(p)-\max\{\,i(q): q\prec p,\ x(q)=x(p)\,\} & \text{ถ้ามี}\\ 0 & \text{ถ้าพบครั้งแรก}\end{cases}$$
+      <p><b>ข้อเสนอ</b> \(f\), \(r\), \(d\) แต่ละตัวกำหนด \(\Pi(x)\) ได้ครบและกลับทางได้: จาก \(f\) กลุ่มคือ \(\{p: f(p)=c\}\); จาก \(d\) ให้ลากเส้นจากแต่ละ \(p\) ไปยังตำแหน่ง \(i(p)-d(p)\) ได้สายโซ่ซึ่งแต่ละสายคือกลุ่มหนึ่ง ∴ <b>Method 4 กับ 5 เก็บข้อมูลเท่ากันเสมอ</b> ต่างกันที่ \(f\) เป็นตำแหน่งสัมบูรณ์ ส่วน \(d\) เป็นระยะสัมพัทธ์ (ใช้ดูลายที่เลื่อนตำแหน่งได้ เช่น ซ้ำสองแสนง)</p>
+
+      <h3>§4 Equality matrix</h3>
+      $$E_{pq}=[\,x(p)=x(q)\,]=(ZZ^{\top})_{pq},\qquad Z\in\{0,1\}^{N\times|\Sigma|}\ \text{(one-hot)}$$
+      <p>ดังนั้น \(E\succeq 0\) และ \(\operatorname{rank}E=|\Pi(x)|\) ถ้าจัดเรียงแถวตามกลุ่ม \(E\cong\bigoplus_j J_{n_j}\) (บล็อกเลข 1 ขนาดเท่ากลุ่ม) ค่าเฉพาะที่ไม่เป็นศูนย์คือขนาดกลุ่ม \(n_j\) — ดาวล้อมเดือน: \(N=32\), \(|\Pi|=25\), กลุ่ม <code>ผล</code> มีขนาด 4 และ <code>บุญ บาป คง… </code> คู่ละ 2</p>
+
+      <h3>§5 กฎ = spanning forest ของแต่ละกลุ่ม</h3>
+      $$R(x)=\{\,(f(p),p): p\ne f(p)\,\},\qquad |R(x)|=N-|\Pi(x)|$$
+      <p>ดาวล้อมเดือน: \(32-25=7\) กฎ การปิดทางสมมูล (equivalence closure) ของ \(R\) ให้ \(\sim_x\) คืนมาครบ จึงไม่มีข้อมูลหาย กฎแบ่งเป็น SAME (\(b\) เดียวกัน) และ CROSS (ข้ามบาท)</p>
+
+      <h3>§6 ตัวตรวจ = ลำดับบน partition</h3>
+      $$s(y;R)=\frac{1}{|R|}\sum_{(a,b)\in R}[\,y(a)=y(b)\,]$$
+      $$s(y;R)=1\iff \sim_R\subseteq\ \sim_y\iff \Pi_R\preceq\Pi(y)$$
+      <p>คือ partition ของกฎ <b>ละเอียดกว่าหรือเท่ากับ</b> ของกลอนที่ตรวจ — กลอนจึงมีคำซ้ำเพิ่ม (คำซ้ำบังเอิญ) ได้โดยไม่เสียคะแนน ส่วน “ลายตรงทุกตัว” คือกรณี \(\Pi(y)=\Pi_R\) ซึ่งเข้มเกินไปสำหรับกลอนจริง</p>
+
+      <h3>§7 กฎร่วมของหลายบท = meet ใน partition lattice</h3>
+      $$\Pi_1\wedge\Pi_2\ \leftrightarrow\ \sim_1\cap\sim_2,\qquad R_T=R\Bigl(\bigwedge_{i\in T}\Pi_i\Bigr)$$
+      <p>อินเตอร์เซกชันของความสัมพันธ์สมมูลยังเป็นความสัมพันธ์สมมูล จึงได้ partition ใหม่ที่เก็บเฉพาะคู่ที่ “ทุกบท” ซ้ำเหมือนกัน คำซ้ำบังเอิญหายไป — ตัวอย่าง: ซ้ำสองแสนงสองบทเหลือกฎร่วมเพียง 1 ข้อ เพราะตำแหน่งคำซ้ำแปรผัน</p>
+
+      <h3>§8 นับลาย และวัดปริมาณข้อมูลของข้อบังคับ</h3>
+      <p>จำนวนลายทั้งหมดบน \(N\) ตำแหน่งคือ Bell number \(B_N\):</p>
+      $$B_{32}\approx1.28\times10^{26},\qquad \#\{\Pi:\Pi_R\preceq\Pi\}=B_{|\Pi_R|}=B_{25}\approx4.64\times10^{18}$$
+      <p>ลายที่ผ่านกฎดาวล้อมเดือนจึงมีเพียงราว \(3.6\times10^{-8}\) ของทั้งหมด ถ้าสุ่มพยางค์อิสระจากคลังขนาด \(V\) โอกาสผ่านกฎทุกข้อคือ</p>
+      $$\Pr[s(y;R)=1]=V^{-|R|}\quad\Rightarrow\quad I(R)=|R|\log_2 V\ \text{bits}$$
+      <p>(แต่ละกฎใน forest บังคับ 1 ตำแหน่งให้เท่ากับรากของกลุ่ม) — คอลัมน์ “ข้อมูลข้อบังคับ (bits)” ในแท็บ LoRA คือค่านี้</p>
+
+      <h3>§9 ระยะห่างระหว่างกลอน</h3>
+      $$d_H(r^{(1)},r^{(2)})=\sum_{j}[\,r^{(1)}_j\ne r^{(2)}_j\,]\ \ (\text{ยาวเท่ากัน}),\qquad d_{\text{Lev}}\ \ (\text{ยาวไม่เท่า})$$
+      <p>หรือใช้ \(1-s(y;R)\) เป็นระยะแบบไม่สมมาตรจาก “ลายต้นแบบ” ไปยังกลอน</p>
+
+      <h3>§10 เชื่อมกับ LoRA</h3>
+      <p>LoRA (Hu et al., 2021) ตรึงน้ำหนักเดิม \(W_0\) และเรียนเฉพาะส่วนเพิ่ม rank ต่ำ:</p>
+      $$W=W_0+\Delta W,\qquad \Delta W=\tfrac{\alpha}{r}BA,\quad B\in\mathbb{R}^{d\times r},\ A\in\mathbb{R}^{r\times k},\ \operatorname{rank}\Delta W\le r$$
+      <p>ฝึกด้วย cross-entropy ของ token ถัดไป:</p>
+      $$\mathcal{L}(B,A)=-\sum_{t}\log p_{\theta}(y_t\mid y_{\lt t})$$
+      <p><b>กฎ = งานคัดลอก</b> การทำตามกฎ \((a,b)\) หมายความว่าโมเดลต้องให้ความน่าจะเป็นสูงกับ \(y_b=y_a\) คือ “คัดลอกจากระยะ \(d(b)\) ก่อนหน้า” ซึ่งใน Transformer ทำผ่าน attention gradient ที่ปรับ \(B,A\) จึงมาจากตำแหน่งเป้า \(T_R=\{b:(a,b)\in R\}\) เป็นหลัก สัดส่วนตำแหน่งที่มีสัญญาณคือ</p>
+      $$\rho=\frac{|R|}{N}\quad(\text{ดาวล้อมเดือน } 7/32\approx0.22)$$
+      <p>ถ้าต้องการเน้นลาย ใช้ loss ถ่วงน้ำหนัก</p>
+      $$\mathcal{L}_w=-\sum_t w_t\log p_\theta(y_t\mid y_{\lt t}),\qquad w_t=1+\lambda\,[\,t\in T_R\,]$$
+      <p><b>ข้อควรระวัง</b> LLM ไม่ได้ตัดเป็นพยางค์ ให้ \(\tau\) เป็น tokenizer ระยะใน token มักยาวกว่าระยะในพยางค์ และกฎต้องแปลงผ่าน \(\tau\) ก่อนใช้กับ \(T_R\) จริง งาน GPoeT (Popescu-Belis et al., 2023) พบว่าลายสัมผัสระยะใกล้ (AABB) เรียนได้ง่ายกว่าระยะไกล (ABAB) — สอดคล้องกับการดูการกระจายของ Δ</p>
+
+      <h3>§11 ความหลากหลายของลายในชุดข้อมูล (เชิงชี้นำ)</h3>
+      <p>สร้างเมทริกซ์ลักษณะ \(M\in\{0,1\}^{n\times m}\): แถว = กลอน, คอลัมน์ = คู่ตำแหน่ง \((p,q)\), \(M_{ij}=1\) ถ้ากลอน \(i\) มี \(x(p)=x(q)\) หา singular values \(\sigma_1\ge\sigma_2\ge\dots\) แล้ว</p>
+      $$\operatorname{erank}(M)=\exp\Bigl(-\sum_i \hat\sigma_i\ln\hat\sigma_i\Bigr),\qquad \hat\sigma_i=\frac{\sigma_i}{\sum_j\sigma_j}$$
+      <p>erank บอกว่าชุดข้อมูลมี “ทิศทางของลาย” ที่เป็นอิสระต่อกันประมาณกี่ทิศ ถ้าเกือบทุกบทเป็นลายเดียวกัน erank ≈ 1 ถ้าแต่ละบทต่างกันหมด erank ≈ n ใช้เป็น<b>ตัวชี้นำ</b>ว่าควรเพิ่มบทในชนิดใด และควรเผื่อความจุ (rank \(r\)) ของ LoRA แค่ไหน — <b>ไม่ใช่ทฤษฎีบทเรื่อง rank ของ LoRA</b> ต้องยืนยันด้วยการทดลองจริง</p>
+    </div>
+  </section>
+
+  <!-- ===================== 5. SECURITY ===================== -->
+  <section id="tab-security" class="tab-page">
+    <div class="prose">
+      <h2>เทคนิค Security ที่ประยุกต์กับ LoRA ในโครงการนี้</h2>
+      <p class="lead">การ fine-tune ด้วย LoRA เพิ่มจุดเสี่ยง 3 จุด: <b>ข้อมูลเทรน</b>, <b>ไฟล์ adapter ที่แชร์กัน</b> และ<b>ผลลัพธ์ของโมเดล</b> หน้านี้รวบรวมแนวทางฝั่งป้องกันและบอกว่าโครงการนี้ใช้แต่ละข้ออย่างไร (เนื้อหาเพื่อการศึกษา)</p>
+
+      <div class="sec-grid">
+        <div class="card">
+          <h3>1. ที่มาและความครบถ้วนของข้อมูล</h3>
+          <p>บันทึกที่มาของทุกบท (ฟิลด์ <code>source</code>) และคำนวณ SHA-256 ของชุดข้อมูลก่อนเทรน เพื่อยืนยันว่าข้อมูลที่ใช้เทรนคือชุดเดียวกับที่ตรวจไว้</p>
+          <p class="apply"><b>ในโปรแกรม:</b> เครื่องมือด้านล่างคำนวณ hash ของชุดข้อมูลปัจจุบัน</p>
+        </div>
+        <div class="card">
+          <h3>2. ป้องกันข้อมูลปนเปื้อน (data poisoning)</h3>
+          <p>งานวิจัยแสดงว่าผู้ไม่หวังดีแทรกตัวอย่างพิษลงชุด instruction tuning ให้โมเดลเปลี่ยนพฤติกรรมเมื่อเจอวลี trigger ได้ และการกรองข้อมูลป้องกันได้เพียงปานกลาง (<a href="https://arxiv.org/abs/2305.00944" target="_blank" rel="noopener">Wan et al., 2023</a>) อีกงานรายงานว่าพิษเพียง 1% ของ 4,000 ตัวอย่างทำให้ประสิทธิภาพลดราว 80% (<a href="https://arxiv.org/abs/2402.13459" target="_blank" rel="noopener">Qiang et al., 2024</a>)</p>
+          <p class="apply"><b>ในโปรแกรม:</b> ใช้ตัวตรวจลายเป็น “ด่านรับข้อมูล” — บทที่อ้างว่าเป็นชนิดใดต้องผ่านกฎของชนิดนั้น และตรวจหาพยางค์ที่โผล่ข้ามหลายชนิดผิดปกติ (ลักษณะคล้าย trigger)</p>
+        </div>
+        <div class="card">
+          <h3>3. ห่วงโซ่อุปทานของ LoRA adapter</h3>
+          <p>Adapter ที่แชร์ต่อกันอาจซ่อน backdoor ไว้ใต้ความสามารถปกติ (<a href="https://arxiv.org/abs/2403.00108" target="_blank" rel="noopener">LoRA-as-an-Attack, 2024</a>; <a href="https://ndss-symposium.org/wp-content/uploads/2025-s164-paper.pdf" target="_blank" rel="noopener">Trojan adapters, NDSS 2025</a>) งานปี 2026 สรุปว่าการตรวจเชิงพฤติกรรม (behavioral detection) เป็นวิธีที่ใช้ได้ทั่วไปสำหรับสแกน adapter (<a href="https://arxiv.org/abs/2605.30189" target="_blank" rel="noopener">Lelle, 2026</a>)</p>
+          <p class="apply"><b>ในโปรแกรม:</b> ใช้กลอนทดสอบ + control เป็นชุดทดสอบพฤติกรรม ก่อนนำ adapter ใดมาใช้ ให้วัดคะแนนผ่านกฎเทียบกับก่อนติดตั้ง และเก็บ hash ของไฟล์ adapter</p>
+        </div>
+        <div class="card">
+          <h3>4. รูปแบบไฟล์น้ำหนักที่ปลอดภัย</h3>
+          <p>ไฟล์แบบ pickle (เช่น <code>.pt/.bin</code> จาก <code>torch.save</code>) รันโค้ดได้ตอนโหลด (<a href="https://huggingface.co/docs/hub/security-pickle" target="_blank" rel="noopener">Hugging Face</a>) ส่วน safetensors เก็บเฉพาะ tensor กับ header JSON จึงไม่มีความเสี่ยงรันโค้ด (<a href="https://pytorch.org/projects/safetensors/" target="_blank" rel="noopener">PyTorch</a>)</p>
+          <p class="apply"><b>แนวปฏิบัติ:</b> บันทึกและโหลด adapter เป็น <code>.safetensors</code> เท่านั้น</p>
+        </div>
+        <div class="card">
+          <h3>5. ลายน้ำ vs ลายเซ็นเชิงโครงสร้าง</h3>
+          <p>Watermark ของ LLM ฝังสัญญาณทางสถิติ (ชุด token “เขียว”) ที่ตรวจได้โดยไม่ต้องเข้าถึงโมเดล (<a href="https://arxiv.org/abs/2301.10226" target="_blank" rel="noopener">Kirchenbauer et al., 2023</a>)</p>
+          <p class="apply"><b>เปรียบเทียบเพื่อการศึกษา:</b> กฎกลบทก็เป็นลายเซ็นที่ตรวจได้โดยไม่ต้องใช้โมเดลเช่นกัน แต่มองเห็นได้และแก้ทิ้งง่าย จึงใช้ยืนยัน “รูปแบบ” ได้ ไม่ใช่ยืนยัน “ผู้สร้าง”</p>
+        </div>
+        <div class="card">
+          <h3>6. การจำข้อมูลเทรน (memorization)</h3>
+          <p>โมเดลจำลำดับที่หายากในข้อมูลเทรนได้ตั้งแต่ช่วงต้นของการเทรน แม้ไม่ overfit วัดได้ด้วยการแทรก “canary” แล้ววัด exposure (<a href="https://arxiv.org/abs/1802.08232" target="_blank" rel="noopener">Carlini et al., 2019</a>)</p>
+          <p class="apply"><b>แนวปฏิบัติ:</b> ใส่กลอน canary สังเคราะห์ 1 บทในชุดเทรน แล้วดูว่า LoRA ท่องกลับมาได้หรือไม่ และวัด n-gram ที่ซ้ำกับข้อมูลเทรน เพื่อแยก “เรียนลาย” ออกจาก “ท่องจำ”</p>
+        </div>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head"><h2>เครื่องมือตรวจชุดข้อมูลก่อนเทรน</h2><button id="btn-audit" class="btn primary" type="button">ตรวจชุดข้อมูลปัจจุบัน</button></div>
+        <div id="audit-out" class="audit"><p class="muted">กดปุ่มเพื่อคำนวณ SHA-256, ตรวจด่านรับข้อมูล และหาพยางค์ที่โผล่ข้ามชนิดผิดปกติ</p></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ===================== 6. SOURCES ===================== -->
+  <section id="tab-sources" class="tab-page">
+    <div class="prose">
+      <h2>โคลงที่นำมาใส่เพิ่ม</h2>
+      <p class="lead">คัดจากสารบัญห้องเรียนโคลงกลบท <a href="https://www.homelittlegirl.com/index.php?topic=6689.msg22951#msg22951" target="_blank" rel="noopener">บ้านกลอนน้อย</a> (59 ชนิด) โดยเลือก<b>เฉพาะกลที่อาศัยคำซ้ำ</b> ซึ่งตัวตรวจแบบ equality ตรวจได้ และ<b>เฉพาะบทคลาสสิก</b> (จารึกวัดพระเชตุพนฯ, จินดามณี, โคลงปทุมสังกา)</p>
+      <div class="table-wrap"><table class="plain" id="sources-table"><thead><tr><th>ชนิด</th><th>บท</th><th>กล (สรุป)</th><th>ที่มา</th><th>หมายเหตุ</th></tr></thead><tbody></tbody></table></div>
+      <h2>ที่ไม่ได้นำมา และเหตุผล</h2>
+      <div class="table-wrap"><table class="plain" id="excluded-table"><thead><tr><th>ชนิด</th><th>เหตุผล</th></tr></thead><tbody></tbody></table></div>
+      <p class="muted">การแบ่งพยางค์/หน่วยคำและขอบเขตวรรคทำโดยผู้พัฒนาจากข้อความบนเว็บ ควรตรวจกับต้นฉบับ (เช่น ประชุมจารึกวัดพระเชตุพนฯ) ก่อนใช้อ้างอิงทางวิชาการ</p>
+    </div>
+  </section>
 
   <footer class="foot">
-    พอร์ตจาก <code>method4_poem_level.py</code> · ต้นฉบับกลโคลงดาวล้อมเดือน: จารึกวัดพระเชตุพนฯ (ศิลาจารึกบาท 2 ใช้ “คงชัก”)
+    Kloang Pattern Lab · เพื่อการศึกษาเท่านั้น · โค้ด: <a href="https://github.com/forworkyanika/kloang-pattern-lab">github.com/forworkyanika/kloang-pattern-lab</a>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" defer></script>
   <script src="kloang.js"></script>
+  <script src="data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

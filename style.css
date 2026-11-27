@@ -131,3 +131,74 @@ table.results { width: 100%; border-collapse: collapse; font-size: 14px; }
   .topbar { flex-direction: column; padding: 16px 14px 8px; }
   .detail-grid { grid-template-columns: 1fr; }
 }
+
+/* ===== v2: banner, tabs, prose pages ===== */
+.edu-banner { background: #2b2a26; color: #f5ecdc; text-align: center; font-size: 14px; padding: 7px 16px; }
+.edu-banner b { color: #ffd58a; }
+.tabs { display: flex; gap: 4px; padding: 0 28px; border-bottom: 1px solid var(--line); overflow-x: auto; position: sticky; top: 0; background: var(--bg); z-index: 5; }
+.tabs button { font: inherit; font-size: 15px; background: none; border: none; border-bottom: 3px solid transparent; padding: 10px 14px; cursor: pointer; color: var(--muted); white-space: nowrap; }
+.tabs button:hover { color: var(--ink); }
+.tabs button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.tab-page { display: none; padding-top: 18px; }
+.tab-page.active { display: block; }
+.prose { max-width: 960px; margin: 0 auto; padding: 0 28px 28px; }
+.prose h2 { font-size: 22px; margin: 26px 0 10px; }
+.prose h2:first-child { margin-top: 4px; }
+.prose h3 { font-size: 16px; margin: 22px 0 6px; }
+.prose p, .prose li { max-width: 78ch; }
+.lead { font-size: 17px; }
+.wide { padding: 0 28px 28px; display: grid; gap: 18px; }
+.wide .prose { padding: 0; max-width: none; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 14px 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+.card h3 { margin: 0 0 6px; font-size: 15px; color: var(--accent); }
+.card p { margin: 6px 0; font-size: 14px; }
+.card .apply { background: var(--accent-soft); border-radius: 6px; padding: 6px 8px; }
+.sec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin: 14px 0 18px; }
+.steps li { margin: 4px 0; }
+.notice { background: #fff8e8; border: 1px solid #ecd9ae; border-radius: var(--radius); padding: 12px 16px; margin-top: 22px; }
+.notice h3 { margin: 0 0 4px; }
+table.plain { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--panel); }
+.plain th, .plain td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+.plain th { background: #f3f0e8; font-weight: 600; }
+.math p { line-height: 1.75; }
+.math .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+
+/* lab additions */
+.edit-row { display: grid; grid-template-columns: 1fr 220px; gap: 8px; }
+.type-input { font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fffdf9; margin-bottom: 8px; }
+.info { margin-top: 8px; font-size: 13px; display: grid; gap: 3px; color: #3d3f44; }
+.info a { color: var(--accent); }
+.meta .soft { color: #8a6d2f; }
+.small-help { margin-top: 10px; max-width: none; font-size: 13px; }
+.small { font-size: 13px; }
+.tag.NEG { background: var(--bad-soft); color: var(--bad); }
+.tag.POS { background: var(--ok-soft); color: var(--ok); }
+
+/* lora */
+.inline { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.inline input { width: 90px; font: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ltag { font-size: 12.5px; padding: 2px 8px; border-radius: 6px; margin: 2px 0; display: inline-block; }
+.ltag.ok { background: var(--ok-soft); color: var(--ok); }
+.ltag.warn { background: #fdf1dc; color: #8a5a12; }
+.ltag.bad { background: var(--bad-soft); color: var(--bad); }
+.ltag.info { background: #e9eff9; color: var(--same); }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.chart { width: 100%; height: auto; display: block; }
+.recs li { margin: 6px 0; max-width: 100ch; }
+#lora-table td:last-child { min-width: 260px; }
+
+/* security audit */
+.audit h3 { font-size: 15px; margin: 14px 0 6px; }
+code.hash { display: block; word-break: break-all; padding: 8px; background: #f0ede6; }
+
+@media (max-width: 900px) {
+  .tabs { padding: 0 8px; }
+  .prose, .wide { padding-left: 14px; padding-right: 14px; }
+  .two-col { grid-template-columns: 1fr; }
+  .edit-row { grid-template-columns: 1fr; }
+}
+.wide { grid-template-columns: minmax(0, 1fr); }
+.wide > *, .two-col > * { min-width: 0; }
+.wide .prose { margin: 0; }

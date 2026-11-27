@@ -59,4 +59,51 @@ assert.ok(K.khlongWarnings(K.parsePoem("ผล บุญ | ยศ")).length > 0)
 // out-of-range position → fail, ไม่ crash
 assert.strictEqual(K.check(K.parsePoem("ผล บุญ"), rules).passed, 0);
 
+// ---- v2: ไม้ยมก, prev-encoding, LoRA metrics, SVD, Bell ----
+assert.deepStrictEqual(K.parsePoem("คิด ถึง ๆ มาท แม้น | ไป่ สม"), [[["คิด", "ถึง", "ถึง", "มาท", "แม้น"], ["ไป่", "สม"]]]);
+assert.deepStrictEqual(K.parsePoem("หวั่นๆ สะ ดุ้ง"), [[["หวั่น", "หวั่น", "สะ", "ดุ้ง"]]]);
+// prev-encoding กับ first-occurrence กำหนด partition เดียวกัน: จำนวนตำแหน่งที่ d>0 = |R|
+const d = K.prevDistances(original);
+assert.strictEqual(d.filter((x) => x > 0).length, K.extractRules(original).length);
+assert.deepStrictEqual(K.prevByBat(original)[1], [7, 0, 1, 0, 0, 0, 0]); // ผล บาท 2 ห่างจาก ผล บาท 1 = 7
+// |R| = N − |Π|
+const m = K.loraMetrics(original, rules, 1024);
+assert.strictEqual(m.N, 32);
+assert.strictEqual(m.blocks, 25);
+assert.strictEqual(m.ownRules, 7);
+assert.strictEqual(m.same, 4);
+assert.strictEqual(m.cross, 3);
+assert.strictEqual(m.noiseRatio, 0);
+assert.strictEqual(m.typeScore, 1);
+assert.strictEqual(m.bits, 7 * 10); // 7 กฎ × log2(1024)
+// คำซ้ำบังเอิญ: positive control มี ใจ ซ้ำ → noise > 0
+const ms = K.loraMetrics(substituted, rules, 1024);
+assert.ok(ms.noiseRatio > 0);
+assert.strictEqual(ms.typeScore, 1);
+// SVD: singular values ของ [[3,0],[0,4]] = 4,3 ; effective rank ของค่าเท่ากัน 3 ค่า = 3
+const sv = K.singularValues([[3, 0], [0, 4]]);
+assert.ok(Math.abs(sv[0] - 4) < 1e-9 && Math.abs(sv[1] - 3) < 1e-9);
+assert.ok(Math.abs(K.effectiveRank([1, 1, 1]) - 3) < 1e-9);
+assert.ok(Math.abs(K.effectiveRank([5]) - 1) < 1e-9);
+// SVD ของเมทริกซ์ทั่วไป: ผลรวม σ² = Frobenius²
+const Mx = [[1, 0, 1], [1, 1, 0], [0, 1, 1], [1, 1, 1]];
+const svx = K.singularValues(Mx);
+const fro = Mx.flat().reduce((a, b) => a + b * b, 0);
+assert.ok(Math.abs(svx.reduce((a, b) => a + b * b, 0) - fro) < 1e-9);
+// Bell numbers
+assert.deepStrictEqual([0, 1, 2, 3, 4, 5].map((n) => Number(K.bell(n))), [1, 1, 2, 5, 15, 52]);
+assert.strictEqual(K.bell(32).toString(), "128064670049908713818925644");
+
+// ---- ตัวอย่างใน data.js ----
+global.window = global;
+require("../data.js");
+const S = global.KLOANG_SAMPLES;
+assert.strictEqual(S.length, 12);
+for (const s of S) assert.ok(K.parsePoem(s.text).length === 4, `${s.name} ต้องมี 4 บาท`);
+const byType = (t) => S.filter((s) => s.type === t).map((s) => K.parsePoem(s.text));
+assert.strictEqual(K.intersectRules(byType("ดาวล้อมเดือน")).length, 7);
+assert.strictEqual(K.intersectRules(byType("ซ้ำสองแสนง")).length, 1); // ตำแหน่งแปรผัน
+const wua = K.extractRules(byType("วัวพันหลัก")[0]);
+assert.ok(wua.length === 3 && wua.every((r) => r.kind === "CROSS"));
+
 console.log("all tests passed ✓");

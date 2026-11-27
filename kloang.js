@@ -9,18 +9,30 @@
   const WAK_NAMES = ["วรรคหน้า", "วรรคหลัง", "คำสร้อย"];
 
   // ---------- parsing ----------
-  /** แปลงข้อความเป็นกลอน: 1 บรรทัด = 1 บาท, "|" คั่นวรรค, ช่องว่างคั่นพยางค์ */
+  /** แปลงข้อความเป็นกลอน: 1 บรรทัด = 1 บาท, "|" คั่นวรรค, ช่องว่างคั่นพยางค์
+   *  ไม้ยมก "ๆ" (แยกหรือติดท้ายคำ) ถูกขยายเป็นหน่วยก่อนหน้าในบาทเดียวกัน */
   function parsePoem(text) {
     return String(text || "")
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
-      .map((line) =>
-        line
+      .map((line) => {
+        let prev = null;
+        return line
           .split("|")
-          .map((wak) => wak.trim().split(/\s+/).filter(Boolean))
-          .filter((wak) => wak.length > 0)
-      )
+          .map((wak) => {
+            const out = [];
+            for (let tok of wak.trim().split(/\s+/).filter(Boolean)) {
+              let reps = 0;
+              while (tok.length > 1 && tok.endsWith("ๆ")) { tok = tok.slice(0, -1); reps++; }
+              if (tok === "ๆ") { if (prev !== null) out.push(prev); continue; }
+              out.push(tok); prev = tok;
+              for (let i = 0; i < reps; i++) out.push(tok);
+            }
+            return out;
+          })
+          .filter((wak) => wak.length > 0);
+      })
       .filter((bat) => bat.length > 0);
   }
 
@@ -181,10 +193,138 @@
     return warn;
   }
 
+  /** prev-encoding (Baker): ระยะไปยังตำแหน่งก่อนหน้าที่ใกล้ที่สุดที่เป็นคำเดียวกัน, 0 = พบครั้งแรก */
+  function prevDistances(poem) {
+    const last = new Map();
+    return flattenWithPos(poem).map((t, i) => {
+      const d = last.has(t.token) ? i - last.get(t.token) : 0;
+      last.set(t.token, i);
+      return d;
+    });
+  }
+
+  /** prev-encoding แยกตามบาท (ใช้ดูลายสัมพัทธ์ที่ไม่ขึ้นกับตำแหน่ง) */
+  function prevByBat(poem) {
+    const flat = flattenWithPos(poem);
+    const d = prevDistances(poem);
+    const rows = poem.map(() => []);
+    flat.forEach((t, i) => rows[t.pos.bat - 1].push(d[i]));
+    return rows;
+  }
+
+  // ---------- LoRA-oriented analysis ----------
+  /** ชุดคู่ตำแหน่งที่ "ถูกบังคับ" โดยกฎ (closure ของกฎ = ทุกคู่ภายในกลุ่มเดียวกัน) */
+  function rulePairs(rules) {
+    const groups = new Map();
+    for (const r of rules) {
+      const a = posKey(r.a), b = posKey(r.b);
+      if (!groups.has(a)) groups.set(a, new Set([a]));
+      groups.get(a).add(b);
+    }
+    const order = (x) => { const p = parseKey(x); return p.bat * 1e6 + p.wak * 1e3 + p.k; };
+    const pairs = new Set();
+    for (const g of groups.values()) {
+      const m = [...g].sort((x, y) => order(x) - order(y));
+      for (let i = 0; i < m.length; i++) for (let j = i + 1; j < m.length; j++) pairs.add(`${m[i]}|${m[j]}`);
+    }
+    return pairs;
+  }
+
+  /** ตัวชี้วัดของกลอน 1 บท ที่เกี่ยวกับสิ่งที่ LoRA จะต้องเรียน
+   *  typeRules = กฎของชนิดกลบท (ใช้แยก "สัญญาณ" ออกจาก "คำซ้ำบังเอิญ") */
+  function loraMetrics(poem, typeRules, vocabSize) {
+    const flat = flattenWithPos(poem);
+    const own = extractRules(poem);
+    const dist = prevDistances(poem).filter((d) => d > 0);  // ระยะคัดลอกจากตำแหน่งก่อนหน้าที่ใกล้ที่สุด
+    const ownPairs = equalPairs(poem);
+    const req = typeRules && typeRules.length ? rulePairs(typeRules) : new Set();
+    let reqHit = 0;
+    for (const p of req) if (ownPairs.has(p)) reqHit++;
+    const sat = typeRules && typeRules.length ? check(poem, typeRules) : null;
+    const V = Math.max(2, vocabSize || 3000);
+    const signal = sat ? sat.passed : 0;
+    return {
+      N: flat.length,
+      blocks: flat.length - own.length,            // |Π| = จำนวนคำต่างกัน
+      ownRules: own.length,                         // |R| = N − |Π|
+      same: own.filter((r) => r.kind === "SAME").length,
+      cross: own.filter((r) => r.kind === "CROSS").length,
+      density: flat.length ? own.length / flat.length : 0,
+      meanDist: dist.length ? dist.reduce((a, b) => a + b, 0) / dist.length : 0,
+      maxDist: dist.length ? Math.max(...dist) : 0,
+      distances: dist,
+      ownPairs: ownPairs.size,
+      requiredPairs: req.size,
+      requiredHit: reqHit,
+      noiseRatio: !req.size ? null : ownPairs.size ? 1 - reqHit / ownPairs.size : 0,
+      typeScore: sat ? sat.score : null,
+      signalRules: signal,
+      bits: signal * Math.log2(V),
+    };
+  }
+
+  /** เมทริกซ์ลักษณะ: แถว = กลอน, คอลัมน์ = คู่ตำแหน่งที่เป็นคำเดียวกัน (0/1) */
+  function pairFeatureMatrix(poems) {
+    const sets = poems.map(equalPairs);
+    const cols = [...new Set(sets.flatMap((s) => [...s]))].sort();
+    const M = sets.map((s) => cols.map((c) => (s.has(c) ? 1 : 0)));
+    return { M, cols };
+  }
+
+  /** ค่าเอกฐาน (singular values) ของ M ผ่าน eigenvalues ของ Gram matrix M Mᵀ (Jacobi) */
+  function singularValues(M) {
+    const n = M.length;
+    if (!n) return [];
+    const G = Array.from({ length: n }, (_, i) =>
+      Array.from({ length: n }, (_, j) => M[i].reduce((s, v, k) => s + v * M[j][k], 0)));
+    for (let sweep = 0; sweep < 100; sweep++) {
+      let off = 0;
+      for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) off += G[p][q] * G[p][q];
+      if (off < 1e-18) break;
+      for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) {
+        if (Math.abs(G[p][q]) < 1e-15) continue;
+        const theta = (G[q][q] - G[p][p]) / (2 * G[p][q]);
+        const t = Math.sign(theta || 1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
+        const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+        for (let k = 0; k < n; k++) {
+          const gkp = G[k][p], gkq = G[k][q];
+          G[k][p] = c * gkp - s * gkq; G[k][q] = s * gkp + c * gkq;
+        }
+        for (let k = 0; k < n; k++) {
+          const gpk = G[p][k], gqk = G[q][k];
+          G[p][k] = c * gpk - s * gqk; G[q][k] = s * gpk + c * gqk;
+        }
+      }
+    }
+    return G.map((row, i) => Math.sqrt(Math.max(0, row[i]))).sort((a, b) => b - a);
+  }
+
+  /** effective rank = exp(H(p)), p_i = σ_i / Σσ */
+  function effectiveRank(sv) {
+    const s = sv.filter((x) => x > 1e-9);
+    const tot = s.reduce((a, b) => a + b, 0);
+    if (!tot) return 0;
+    const H = -s.reduce((h, x) => h + (x / tot) * Math.log(x / tot), 0);
+    return Math.exp(H);
+  }
+
+  /** Bell number B_n (จำนวนวิธีแบ่ง n ตำแหน่งเป็นกลุ่ม = จำนวนลายที่เป็นไปได้) */
+  function bell(n) {
+    let row = [1n];
+    for (let i = 0; i < n; i++) {
+      const next = [row[row.length - 1]];
+      for (const v of row) next.push(next[next.length - 1] + v);
+      row = next;
+    }
+    return row[0];
+  }
+
   const api = {
     WAK_NAMES, parsePoem, poemToText, posKey, posLabel, flattenWithPos,
     poemFirstOccurrence, letterPattern, backReferences, extractRules,
     equalPairs, pairsToRules, intersectRules, tokenAt, check, shape, khlongWarnings,
+    rulePairs, loraMetrics, pairFeatureMatrix, singularValues, effectiveRank, bell,
+    prevDistances, prevByBat,
   };
   root.Kloang = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
